@@ -1,4 +1,5 @@
 import pandas as pd
+import matplotlib.pyplot as plt
 
 
 def load_coral_data(file_path):
@@ -12,7 +13,7 @@ def load_coral_data(file_path):
     pd.DataFrame: A DataFrame containing the loaded coral data.
     """
     try:
-        coral_data = pd.read_csv(file_path, sep=';')
+        coral_data = pd.read_csv(file_path, sep=";")
         return coral_data
 
     except FileNotFoundError:
@@ -44,8 +45,18 @@ def print_info_loaded_data(dataframe):
 
 
 if __name__ == "__main__":
-    # Example usage
     file_path = "data/202603_GFASC_FEF_Settlement_Assays.csv"
     print(f"Loading coral data from: {file_path}")
     coral_data = load_coral_data(file_path)
     print_info_loaded_data(coral_data)
+
+    mean_settlers_by_treatment = coral_data.groupby("TREATMENT")["PERCENTAGE_SETTLERS"].mean()
+    print(f"Mean settlement by treatment:\n{mean_settlers_by_treatment}")
+
+    behavior_columns = ["NB_CCA_SETTLERS_TOP",
+                        "NB_CCA_SETTLERSBOTTOM",
+                        "NB_PETRIDISH_SETTLERS",
+                        "NB_HANGERS",
+                        "NB_SWIMMING",
+                        "NB_NOT_SWIMMING",
+                        "NB_CAULIFLOWERS"]
