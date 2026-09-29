@@ -1,6 +1,8 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
+import config
+
 
 def load_coral_data(file_path):
     """
@@ -64,11 +66,11 @@ def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LAR
         settled_larvae = dataframe[behavior_columns].sum(axis=1)
         dataframe["NB_DEAD"] = dataframe[total_larvae_column] - settled_larvae
 
-        negative_dead_rows = dataframe["NB_DEAD"] < 0
-        if negative_dead_rows.any():
+        negative_dead_mask = dataframe["NB_DEAD"] < 0
+        if negative_dead_mask.any():
             print("---- WARNING - Negative dead values ----")
-            print(f"rows with negative dead values:\n{dataframe[negative_dead_rows]}")
-            dataframe = dataframe.drop(dataframe[negative_dead_rows].index)
+            print(f"rows with negative dead values:\n{dataframe[negative_dead_mask]}")
+            dataframe = dataframe.drop(dataframe[negative_dead_mask].index)
             print("---- These rows have been removed ----\n")
         return dataframe
 
@@ -78,25 +80,18 @@ def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LAR
 
 
 if __name__ == "__main__":
-    file_path = "data/202603_GFASC_FEF_Settlement_Assays.csv"
+
+
+
+    file_path = config.file_path
     print(f"Loading coral data from: {file_path}")
     coral_data = load_coral_data(file_path)
     print_info_loaded_data(coral_data)
 
-    mean_settlers_by_treatment = coral_data.groupby("TREATMENT")["PERCENTAGE_SETTLERS"].mean()
-    print(f"Mean settlement by treatment:\n{mean_settlers_by_treatment}")
-
-    info_columns = ["COHORT_ID", "TREATMENT", "AGE_LARVAE"]
-    behavior_columns = ["NB_CCA_SETTLERS_TOP",
-                        "NB_CCA_SETTLERS_BOTTOM",
-                        "NB_PETRIDISH_SETTLERS",
-                        "NB_HANGERS",
-                        "NB_SWIMMING",
-                        "NB_NOT_SWIMMING",
-                        "NB_CAULIFLOWERS"]
-
-    columns_to_display = info_columns + behavior_columns
-    print(coral_data[columns_to_display].head(5))
+    info_columns = config.info_columns
+    behavior_columns = config.behavior_columns
 
     coral_data = data_preparation(coral_data, behavior_columns)
-    print(coral_data.head())
+
+    columns_to_display = info_columns + behavior_columns + ["NB_DEAD"]
+    print(coral_data[columns_to_display].head(5))
