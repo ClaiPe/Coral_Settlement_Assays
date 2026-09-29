@@ -44,6 +44,39 @@ def print_info_loaded_data(dataframe):
         print("No data to display. Please check the file path and ensure the file is not empty or corrupted.")
 
 
+def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LARVAE_SET"):
+    """
+    Prepare the coral data for analysis.
+
+    Parameters:
+    dataframe (pd.DataFrame): The DataFrame containing the loaded data
+    behavior_columns (list): List of column names for behavior data
+    total_larvae_column (str): Name of the column containing the total number of larvae in the replicate
+
+    What it does:
+    Add a NB_DEAD column containing the number of dead larvae in the batch.
+    Remove the rows where NB_DEAD < 0
+
+    Returns:
+    The updated dataframe
+    """
+    if dataframe is not None:
+        settled_larvae = dataframe[behavior_columns].sum(axis=1)
+        dataframe["NB_DEAD"] = dataframe[total_larvae_column] - settled_larvae
+
+        negative_dead_rows = dataframe[dataframe["NB_DEAD"] < 0]
+        if any(negative_dead_rows):
+            print("---- WARNING - Negative dead values ----")
+            print(f"rows with negative dead values:\n{negative_dead_rows}")
+            dataframe = dataframe.drop(negative_dead_rows.index)
+            print("---- These rows have been removed ----\n")
+        return dataframe
+
+    else:
+        print("No data to prepare. Please check the file path and ensure the file is not empty or corrupted.")
+        return None
+
+
 if __name__ == "__main__":
     file_path = "data/202603_GFASC_FEF_Settlement_Assays.csv"
     print(f"Loading coral data from: {file_path}")
@@ -53,10 +86,17 @@ if __name__ == "__main__":
     mean_settlers_by_treatment = coral_data.groupby("TREATMENT")["PERCENTAGE_SETTLERS"].mean()
     print(f"Mean settlement by treatment:\n{mean_settlers_by_treatment}")
 
+    info_columns = ["COHORT_ID", "TREATMENT", "AGE_LARVAE"]
     behavior_columns = ["NB_CCA_SETTLERS_TOP",
-                        "NB_CCA_SETTLERSBOTTOM",
+                        "NB_CCA_SETTLERS_BOTTOM",
                         "NB_PETRIDISH_SETTLERS",
                         "NB_HANGERS",
                         "NB_SWIMMING",
                         "NB_NOT_SWIMMING",
                         "NB_CAULIFLOWERS"]
+
+    columns_to_display = info_columns + behavior_columns
+    print(coral_data[columns_to_display].head(5))
+
+    coral_data = data_preparation(coral_data, behavior_columns)
+    print(coral_data.head())
