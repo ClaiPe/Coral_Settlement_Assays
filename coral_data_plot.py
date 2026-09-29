@@ -64,11 +64,11 @@ def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LAR
         settled_larvae = dataframe[behavior_columns].sum(axis=1)
         dataframe["NB_DEAD"] = dataframe[total_larvae_column] - settled_larvae
 
-        negative_dead_rows = dataframe[dataframe["NB_DEAD"] < 0]
-        if any(negative_dead_rows):
+        negative_dead_rows = dataframe["NB_DEAD"] < 0
+        if negative_dead_rows.any():
             print("---- WARNING - Negative dead values ----")
-            print(f"rows with negative dead values:\n{negative_dead_rows}")
-            dataframe = dataframe.drop(negative_dead_rows.index)
+            print(f"rows with negative dead values:\n{dataframe[negative_dead_rows]}")
+            dataframe = dataframe.drop(dataframe[negative_dead_rows].index)
             print("---- These rows have been removed ----\n")
         return dataframe
 
