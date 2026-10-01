@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 
 import config
@@ -79,19 +80,55 @@ def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LAR
         return None
 
 
+def compute_percentage(dataframe, count_columns, total, info_columns):
+    """
+    Compute percentages
+
+    Arguments:
+    dataframe (pd.DataFrame): The DataFrame containing the loaded data
+    count_columns (list): Columns on which to compute the percentage
+    total (pd.Series): Reference column to compute the percentage
+    info_columns (list): columns with important info to keep
+
+    What it does:
+    Compute percentage for each columns
+    Sanity check: check if the sum of all columns is equal to 100.
+
+    Returns:
+    A Dataframe with the percentage and the info columns
+    """
+    percentage = dataframe[count_columns].div(total, axis=0) * 100
+    # Sanity check
+    sum_percentage = percentage[count_columns].sum(axis=1)
+    wrong_sum_mask = ~np.isclose(sum_percentage, 100) # ~ inverts the mask (True becomes False, as we want the false rows)
+    if wrong_sum_mask.any():
+        print("---- WARNING - Some percentage sum different from 100 ----")
+        print(f"rows with weird percentage:\n{dataframe[wrong_sum_mask]}")
+
+    result = pd.concat([dataframe[info_columns], percentage], axis=1)
+
+    return result
+
+
 if __name__ == "__main__":
 
-
-
-    file_path = config.file_path
+    file_path = config.FILE_PATH
     print(f"Loading coral data from: {file_path}")
     coral_data = load_coral_data(file_path)
     print_info_loaded_data(coral_data)
 
-    info_columns = config.info_columns
-    behavior_columns = config.behavior_columns
+    info_columns = config.INFO_COLUMNS
+    behavior_columns = config.BEHAVIOR_COLUMNS
 
     coral_data = data_preparation(coral_data, behavior_columns)
+    behavior_columns = behavior_columns + ["NB_DEAD"]
 
-    columns_to_display = info_columns + behavior_columns + ["NB_DEAD"]
+    columns_to_display = info_columns + behavior_columns
     print(coral_data[columns_to_display].head(5))
+
+    percentage = compute_percentage(coral_data,
+                                    behavior_columns,
+                                    coral_data[config.TOTAL_LARVAE_REPLICATE],
+                                    info_columns)
+    print(percentage.head(5))
+    

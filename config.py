@@ -1,9 +1,12 @@
 # Parameter used to plot the coral settlement data.
 
-file_path = "data/202603_GFASC_FEF_Settlement_Assays.csv"
+FILE_PATH = "data/202603_GFASC_FEF_Settlement_Assays.csv"
 
-info_columns = ["COHORT_ID", "TREATMENT", "AGE_LARVAE"]
-behavior_columns = ["NB_CCA_SETTLERS_TOP",
+TOTAL_LARVAE_REPLICATE = "TOTAL_LARVAE_SET"
+
+INFO_COLUMNS = ["COHORT_ID", "TREATMENT", "AGE_LARVAE"]
+
+BEHAVIOR_COLUMNS = ["NB_CCA_SETTLERS_TOP",
                     "NB_CCA_SETTLERS_BOTTOM",
                     "NB_PETRIDISH_SETTLERS",
                     "NB_HANGERS",
