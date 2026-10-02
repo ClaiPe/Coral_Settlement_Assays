@@ -79,8 +79,26 @@ def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LAR
         print("No data to prepare. Please check the file path and ensure the file is not empty or corrupted.")
         return None
 
+def percentage_sanity_check(dataframe, count_columns):
+    """
+    Test to check if the sum of percentages is equal to 100.
 
-def compute_percentage(dataframe, count_columns, total, info_columns):
+    Arguments:
+    dataframe (pd.Dataframe): dataframe containing the percentages to check
+    count_columns (list): list of columns containing the percentages
+
+    Returns:
+    Nothing if no weird percentage.
+    If weird percentage, returns the problematic rows.
+    """
+    sum_percentage = dataframe[count_columns].sum(axis=1)
+    wrong_sum_mask = ~np.isclose(sum_percentage, 100) # ~ inverts the mask (True becomes False, as we want the false rows)
+    if wrong_sum_mask.any():
+        print("---- WARNING - Some percentage sum different from 100 ----")
+        print(f"rows with weird percentage:\n{dataframe[wrong_sum_mask]}")
+
+
+def compute_percentage_per_row(dataframe, count_columns, total, info_columns):
     """
     Compute percentages
 
@@ -99,15 +117,30 @@ def compute_percentage(dataframe, count_columns, total, info_columns):
     """
     percentage = dataframe[count_columns].div(total, axis=0) * 100
     # Sanity check
-    sum_percentage = percentage[count_columns].sum(axis=1)
-    wrong_sum_mask = ~np.isclose(sum_percentage, 100) # ~ inverts the mask (True becomes False, as we want the false rows)
-    if wrong_sum_mask.any():
-        print("---- WARNING - Some percentage sum different from 100 ----")
-        print(f"rows with weird percentage:\n{dataframe[wrong_sum_mask]}")
+    percentage_sanity_check(percentage, count_columns)
 
     result = pd.concat([dataframe[info_columns], percentage], axis=1)
 
     return result
+
+
+def compute_mean_percentage(dataframe, count_columns, group_columns):
+    """
+    Compute mean percentage
+
+    Arguments:
+    dataframe (pd.Dataframe): dataframe containing row percentages
+    count_columns (list): list of columns on which to compute the means
+    group_columns (list): columns to group the rows by
+
+    Returns:
+    dataframe with mean percentage for each group
+    """
+    mean_percentage = dataframe.groupby(group_columns)[count_columns].mean()
+    # Sanity check
+    percentage_sanity_check(mean_percentage, count_columns)
+
+    return mean_percentage
 
 
 if __name__ == "__main__":
@@ -119,6 +152,7 @@ if __name__ == "__main__":
 
     info_columns = config.INFO_COLUMNS
     behavior_columns = config.BEHAVIOR_COLUMNS
+    total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
 
     coral_data = data_preparation(coral_data, behavior_columns)
     behavior_columns = behavior_columns + ["NB_DEAD"]
@@ -126,9 +160,12 @@ if __name__ == "__main__":
     columns_to_display = info_columns + behavior_columns
     print(coral_data[columns_to_display].head(5))
 
-    percentage = compute_percentage(coral_data,
-                                    behavior_columns,
-                                    coral_data[config.TOTAL_LARVAE_REPLICATE],
-                                    info_columns)
-    print(percentage.head(5))
-    
+    percentage_per_replicate = compute_percentage_per_row(coral_data,
+                                                          behavior_columns,
+                                                          coral_data[total_larvae_per_replicate],
+                                                          info_columns)
+
+    grouped_percentage = compute_mean_percentage(percentage_per_replicate,
+                                                 behavior_columns,
+                                                 info_columns)
+    print(grouped_percentage)
