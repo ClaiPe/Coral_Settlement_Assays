@@ -156,17 +156,17 @@ def compute_percentage(dataframe, count_columns, total_column, info_columns):
     return grouped_percentage
 
 
-def plot_larval_behavior(dataframe, cohort_id, save_dir):
+def plot_larval_behavior(dataframe, cohort_id):
     """
-    Plot the proportion of each observed behavior and output it in a .png file.
+    Plot the proportion of each observed behavior.
 
     Arguments:
     dataframe (pd.DataFrame): dataframe containing the percentages
     cohort_id (str): cohort identification
-    save_dir (str): directory to save the output plot.
 
     Returns:
-    None
+    fig (matplotlib.figure.Figure) containing the plots
+    fig name (str).
     """
     cohort_data = dataframe.loc[cohort_id]
     treatments = cohort_data.index.unique(level="TREATMENT")
@@ -190,21 +190,42 @@ def plot_larval_behavior(dataframe, cohort_id, save_dir):
                loc="center left",
                bbox_to_anchor=(1, 0.5))
 
+    fig_name = f"{cohort_id}_Larval_behavior"
+
+    return fig, fig_name
+
+
+def save_figure(fig, fig_name, save_dir, format="png"):
+    """
+    Save a figure in the output directory
+
+    Arguments: 
+    fig (matplotlib.figure.Figure): figure to save
+    fig_name (str): name of output file
+    save_dir (str): directory to save the output fig.
+
+    Returns:
+    None
+    """
     save_path = Path(save_dir)
     save_path.mkdir(exist_ok=True)
 
-    fig.savefig(save_path / f"{cohort_id}_Larval_behavior.png",
+    fig.savefig(save_path / f"{fig_name}.{format}",
                 dpi=150,
                 bbox_inches="tight")
     plt.close(fig)
 
 
-if __name__ == "__main__":
-
+def main():
+    """
+    Plot larval behavior for each cohort and each treatment.
+    The function reads the data specified in the config 
+    and saves a plot per cohort in the output folder.
+    """
     file_path = config.FILE_PATH
     print(f"Loading coral data from: {file_path}")
     coral_data = load_coral_data(file_path)
-    print_info_loaded_data(coral_data)
+    # print_info_loaded_data(coral_data)
 
     info_columns = config.INFO_COLUMNS
     behavior_columns = config.BEHAVIOR_COLUMNS
@@ -224,4 +245,9 @@ if __name__ == "__main__":
 
     for cohort in tqdm(cohorts,
                        desc="Plotting larval behavior for each cohort"):
-        plot_larval_behavior(grouped_percentage, cohort, config.OUTPUT_PATH)
+        figure, fig_name = plot_larval_behavior(grouped_percentage, cohort)
+        save_figure(figure, fig_name, config.OUTPUT_PATH)
+
+
+if __name__ == "__main__":
+    main()
