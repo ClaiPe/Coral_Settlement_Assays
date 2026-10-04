@@ -13,3 +13,5 @@ BEHAVIOR_COLUMNS = ["NB_CCA_SETTLERS_TOP",
                     "NB_SWIMMING",
                     "NB_NOT_SWIMMING",
                     "NB_CAULIFLOWERS"]
+
+OUTPUT_PATH = "./output"

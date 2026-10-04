@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 import config
 
@@ -177,10 +178,17 @@ def plot_larval_behavior(dataframe, cohort_id, save_dir):
 
     for ax, treatment in zip(axes[0], treatments):
         treatment_data = cohort_data.loc[treatment]
-        treatment_data.plot(kind="bar", stacked=True, ax=ax)
+        treatment_data.plot(kind="bar", stacked=True, ax=ax,
+                            legend=False)
         ax.set(title=treatment,
                xlabel="Larval age",
                ylabel="Percentage", ylim=(0, 100))
+
+    handles, labels = axes[0][0].get_legend_handles_labels()
+    fig.legend(handles,
+               labels,
+               loc="center left",
+               bbox_to_anchor=(1, 0.5))
 
     save_path = Path(save_dir)
     save_path.mkdir(exist_ok=True)
@@ -212,4 +220,8 @@ if __name__ == "__main__":
                                             info_columns)
     print(grouped_percentage)
 
-    plot_larval_behavior(grouped_percentage, "20260307_GFASC_FEF", "./output")
+    cohorts = grouped_percentage.index.unique(level="COHORT_ID")
+
+    for cohort in tqdm(cohorts,
+                       desc="Plotting larval behavior for each cohort"):
+        plot_larval_behavior(grouped_percentage, cohort, config.OUTPUT_PATH)
