@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -79,12 +81,13 @@ def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LAR
         print("No data to prepare. Please check the file path and ensure the file is not empty or corrupted.")
         return None
 
+
 def percentage_sanity_check(dataframe, count_columns):
     """
     Test to check if the sum of percentages is equal to 100.
 
     Arguments:
-    dataframe (pd.Dataframe): dataframe containing the percentages to check
+    dataframe (pd.DataFrame): dataframe containing the percentages to check
     count_columns (list): list of columns containing the percentages
 
     Returns:
@@ -115,8 +118,7 @@ def compute_percentage_per_row(dataframe, count_columns, total, info_columns):
     Returns:
     A Dataframe with the percentage and the info columns
     """
-    percentage = dataframe[count_columns].div(total, axis=0) * 100
-    # Sanity check
+    percentage = dataframe[count_columns].div(dataframe[total], axis=0) * 100
     percentage_sanity_check(percentage, count_columns)
 
     result = pd.concat([dataframe[info_columns], percentage], axis=1)
@@ -129,7 +131,7 @@ def compute_mean_percentage(dataframe, count_columns, group_columns):
     Compute mean percentage
 
     Arguments:
-    dataframe (pd.Dataframe): dataframe containing row percentages
+    dataframe (pd.DataFrame): dataframe containing row percentages
     count_columns (list): list of columns on which to compute the means
     group_columns (list): columns to group the rows by
 
@@ -137,10 +139,56 @@ def compute_mean_percentage(dataframe, count_columns, group_columns):
     dataframe with mean percentage for each group
     """
     mean_percentage = dataframe.groupby(group_columns)[count_columns].mean()
-    # Sanity check
     percentage_sanity_check(mean_percentage, count_columns)
 
     return mean_percentage
+
+
+def compute_percentage(dataframe, count_columns, total_column, info_columns):
+    percentage_per_replicate = compute_percentage_per_row(dataframe,
+                                                          count_columns,
+                                                          total_column,
+                                                          info_columns)
+    grouped_percentage = compute_mean_percentage(percentage_per_replicate,
+                                                 count_columns,
+                                                 info_columns)
+    return grouped_percentage
+
+
+def plot_larval_behavior(dataframe, cohort_id, save_dir):
+    """
+    Plot the proportion of each observed behavior and output it in a .png file.
+
+    Arguments:
+    dataframe (pd.DataFrame): dataframe containing the percentages
+    cohort_id (str): cohort identification
+    save_dir (str): directory to save the output plot.
+
+    Returns:
+    None
+    """
+    cohort_data = dataframe.loc[cohort_id]
+    treatments = cohort_data.index.unique(level="TREATMENT")
+
+    fig, axes = plt.subplots(1, len(treatments),
+                             figsize=(4 * len(treatments), 4),
+                             sharey=False, squeeze=False)
+    fig.suptitle(f"[{cohort_id}] - Larval Behavior")
+
+    for ax, treatment in zip(axes[0], treatments):
+        treatment_data = cohort_data.loc[treatment]
+        treatment_data.plot(kind="bar", stacked=True, ax=ax)
+        ax.set(title=treatment,
+               xlabel="Larval age",
+               ylabel="Percentage", ylim=(0, 100))
+
+    save_path = Path(save_dir)
+    save_path.mkdir(exist_ok=True)
+
+    fig.savefig(save_path / f"{cohort_id}_Larval_behavior.png",
+                dpi=150,
+                bbox_inches="tight")
+    plt.close(fig)
 
 
 if __name__ == "__main__":
@@ -155,17 +203,13 @@ if __name__ == "__main__":
     total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
 
     coral_data = data_preparation(coral_data, behavior_columns)
+
     behavior_columns = behavior_columns + ["NB_DEAD"]
 
-    columns_to_display = info_columns + behavior_columns
-    print(coral_data[columns_to_display].head(5))
-
-    percentage_per_replicate = compute_percentage_per_row(coral_data,
-                                                          behavior_columns,
-                                                          coral_data[total_larvae_per_replicate],
-                                                          info_columns)
-
-    grouped_percentage = compute_mean_percentage(percentage_per_replicate,
-                                                 behavior_columns,
-                                                 info_columns)
+    grouped_percentage = compute_percentage(coral_data,
+                                            behavior_columns,
+                                            total_larvae_per_replicate,
+                                            info_columns)
     print(grouped_percentage)
+
+    plot_larval_behavior(grouped_percentage, "20260307_GFASC_FEF", "./output")
