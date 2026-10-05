@@ -14,23 +14,26 @@ def load_coral_data(file_path):
 
     Parameters:
     file_path (str): The path to the CSV file containing coral data.
+    Both comma and semicolon separators are allowed.
 
     Returns:
     pd.DataFrame: A DataFrame containing the loaded coral data.
     """
+    message = []
     try:
-        coral_data = pd.read_csv(file_path, sep=";")
-        return coral_data
+        coral_data = pd.read_csv(file_path, sep=None, engine="python")
+        message.append(f"Loading coral data from: {file_path}")
+        return coral_data, message
 
     except FileNotFoundError:
-        print(f"Error: The file at {file_path} was not found.")
-        return None
+        message.append(f"Error: The file at {file_path} was not found.")
+        return message
     except pd.errors.EmptyDataError:
-        print("Error: The file is empty.")
-        return None
+        message.append("Error: The file is empty.")
+        return message
     except pd.errors.ParserError:
-        print("Error: There was a parsing error while reading the file.")
-        return None
+        message.append("Error: There was a parsing error while reading the file.")
+        return message
 
 
 def print_info_loaded_data(dataframe):
@@ -50,37 +53,45 @@ def print_info_loaded_data(dataframe):
         print("No data to display. Please check the file path and ensure the file is not empty or corrupted.")
 
 
-def data_preparation(dataframe, behavior_columns, total_larvae_column="TOTAL_LARVAE_SET"):
+def data_preparation(dataframe, behavior_columns, id_columns, total_larvae_column="TOTAL_LARVAE_SET"):
     """
     Prepare the coral data for analysis.
 
     Parameters:
     dataframe (pd.DataFrame): The DataFrame containing the loaded data
-    behavior_columns (list): List of column names for behavior data
-    total_larvae_column (str): Name of the column containing the total number of larvae in the replicate
+    behavior_columns (list): Names of column for behavior data
+    id_columns (list): Columns necessary to identify a row
+    total_larvae_column (str): Name of the column with total number of larvae in the replicate
 
     What it does:
     Add a NB_DEAD column containing the number of dead larvae in the batch.
     Remove the rows where NB_DEAD < 0
 
     Returns:
-    The updated dataframe
+    The updated dataframe and associated warnings when necessary.
     """
+    warnings = []
     if dataframe is not None:
         settled_larvae = dataframe[behavior_columns].sum(axis=1)
         dataframe["NB_DEAD"] = dataframe[total_larvae_column] - settled_larvae
 
+        # Data check
         negative_dead_mask = dataframe["NB_DEAD"] < 0
         if negative_dead_mask.any():
-            print("---- WARNING - Negative dead values ----")
-            print(f"rows with negative dead values:\n{dataframe[negative_dead_mask]}")
+            negative_dead_rows = dataframe.loc[negative_dead_mask, id_columns]
+            negative_dead_rows_text = negative_dead_rows.to_string(index=False)
+            warnings.append(
+                f"{negative_dead_mask.sum()} rows were removed "
+                f"because the number of dead larvae was negative:\n{negative_dead_rows_text}")
+
+            # remove the problematic rows:
             dataframe = dataframe.drop(dataframe[negative_dead_mask].index)
-            print("---- These rows have been removed ----\n")
-        return dataframe
+
+        return dataframe, warnings
 
     else:
-        print("No data to prepare. Please check the file path and ensure the file is not empty or corrupted.")
-        return None
+        warnings.append("No data to prepare. Please check the file path and ensure the file is not empty or corrupted.")
+        return warnings
 
 
 def percentage_sanity_check(dataframe, count_columns):
@@ -223,15 +234,23 @@ def main():
     and saves a plot per cohort in the output folder.
     """
     file_path = config.FILE_PATH
-    print(f"Loading coral data from: {file_path}")
-    coral_data = load_coral_data(file_path)
-    # print_info_loaded_data(coral_data)
-
     info_columns = config.INFO_COLUMNS
     behavior_columns = config.BEHAVIOR_COLUMNS
     total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
 
-    coral_data = data_preparation(coral_data, behavior_columns)
+    # Loading data
+    coral_data, messages = load_coral_data(file_path)
+    for message in messages:
+        print(f"{message}")
+    # print_info_loaded_data(coral_data)
+
+    # Data preprocessing
+    coral_data, warnings = data_preparation(coral_data, 
+                                            behavior_columns,
+                                            info_columns + ["NB_REPLICATES"])
+    # print warnings
+    for warning in warnings:
+        print(f"WARNING: {warning}")
 
     behavior_columns = behavior_columns + ["NB_DEAD"]
 

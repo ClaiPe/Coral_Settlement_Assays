@@ -1,6 +1,7 @@
 # Parameter used to plot the coral settlement data.
 
 FILE_PATH = "data/202603_GFASC_FEF_Settlement_Assays.csv"
+# FILE_PATH = "data/test_comma.csv"
 
 TOTAL_LARVAE_REPLICATE = "TOTAL_LARVAE_SET"
 
