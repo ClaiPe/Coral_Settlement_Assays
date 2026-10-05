@@ -199,7 +199,7 @@ def save_figure(fig, fig_name, save_dir, format="png"):
     """
     Save a figure in the output directory
 
-    Arguments: 
+    Arguments:
     fig (matplotlib.figure.Figure): figure to save
     fig_name (str): name of output file
     save_dir (str): directory to save the output fig.
