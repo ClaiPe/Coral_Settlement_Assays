@@ -1,4 +1,5 @@
 from pathlib import Path
+import csv
 
 import pandas as pd
 import numpy as np
@@ -6,6 +7,10 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import config
+
+
+class InvalidDataError(Exception):
+    """Error caused by an invalid data file"""
 
 
 def load_coral_data(file_path):
@@ -19,21 +24,52 @@ def load_coral_data(file_path):
     Returns:
     pd.DataFrame: A DataFrame containing the loaded coral data.
     """
-    message = []
     try:
         coral_data = pd.read_csv(file_path, sep=None, engine="python")
-        message.append(f"Loading coral data from: {file_path}")
-        return coral_data, message
+        return coral_data
 
     except FileNotFoundError:
-        message.append(f"Error: The file at {file_path} was not found.")
-        return message
+        raise InvalidDataError(f"The file at {file_path} was not found.")
+
     except pd.errors.EmptyDataError:
-        message.append("Error: The file is empty.")
-        return message
+        raise InvalidDataError(f"The file at {file_path} is empty.")
+
     except pd.errors.ParserError:
-        message.append("Error: There was a parsing error while reading the file.")
-        return message
+        raise InvalidDataError("There was a parsing error while reading the file.")
+
+    except csv.Error:
+        raise InvalidDataError("Separator not detected or empty file")
+
+
+def check_column_content(dataframe, mandatory_columns):
+    """
+    Check if the mandatory columns are present in the dataframe 
+    and if there are additional columns
+
+    Arguments:
+    dataframe (pd.DataFrame): the dataframe containing the data
+    mandatory_columns (list): list of mandatory columns
+
+    Returns:
+    Warning message to inform the user on column content.
+
+    Raises:
+    InvalidDataError if mandatory column missing.
+    """
+    warnings = []
+    missing_columns = [column for column in mandatory_columns
+                       if column not in dataframe.columns]
+    if missing_columns:
+        raise InvalidDataError(f"Missing mandatory columns:"
+                               f"{", ".join(missing_columns)}")
+
+    additional_columns = [column for column in dataframe.columns
+                          if column not in mandatory_columns]
+    if additional_columns:
+        warnings.append(f"Additional columns detected: "
+                        f"{", ".join(additional_columns)}.\n"
+                        "These columns will be ignored.")
+    return warnings
 
 
 def print_info_loaded_data(dataframe):
@@ -71,27 +107,23 @@ def data_preparation(dataframe, behavior_columns, id_columns, total_larvae_colum
     The updated dataframe and associated warnings when necessary.
     """
     warnings = []
-    if dataframe is not None:
-        settled_larvae = dataframe[behavior_columns].sum(axis=1)
-        dataframe["NB_DEAD"] = dataframe[total_larvae_column] - settled_larvae
 
-        # Data check
-        negative_dead_mask = dataframe["NB_DEAD"] < 0
-        if negative_dead_mask.any():
-            negative_dead_rows = dataframe.loc[negative_dead_mask, id_columns]
-            negative_dead_rows_text = negative_dead_rows.to_string(index=False)
-            warnings.append(
-                f"{negative_dead_mask.sum()} rows were removed "
-                f"because the number of dead larvae was negative:\n{negative_dead_rows_text}")
+    settled_larvae = dataframe[behavior_columns].sum(axis=1)
+    dataframe["NB_DEAD"] = dataframe[total_larvae_column] - settled_larvae
 
-            # remove the problematic rows:
-            dataframe = dataframe.drop(dataframe[negative_dead_mask].index)
+    # Data check
+    negative_dead_mask = dataframe["NB_DEAD"] < 0
+    if negative_dead_mask.any():
+        negative_dead_rows = dataframe.loc[negative_dead_mask, id_columns]
+        negative_dead_rows_text = negative_dead_rows.to_string(index=False)
+        warnings.append(
+            f"{negative_dead_mask.sum()} rows were removed "
+            f"because the number of dead larvae was negative:\n{negative_dead_rows_text}")
 
-        return dataframe, warnings
+        # remove the problematic rows:
+        dataframe = dataframe.drop(dataframe[negative_dead_mask].index)
 
-    else:
-        warnings.append("No data to prepare. Please check the file path and ensure the file is not empty or corrupted.")
-        return warnings
+    return dataframe, warnings
 
 
 def percentage_sanity_check(dataframe, count_columns):
@@ -234,15 +266,27 @@ def main():
     and saves a plot per cohort in the output folder.
     """
     file_path = config.FILE_PATH
+    mandatory_columns = config.MANDATORY_COLUMNS
     info_columns = config.INFO_COLUMNS
     behavior_columns = config.BEHAVIOR_COLUMNS
     total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
 
     # Loading data
-    coral_data, messages = load_coral_data(file_path)
-    for message in messages:
-        print(f"{message}")
+    try:
+        print(f"Loading coral data from: {file_path}")
+        coral_data = load_coral_data(file_path)
+    except InvalidDataError as error:
+        print(f"ERROR: {error}")
+        return
     # print_info_loaded_data(coral_data)
+
+    try:
+        columns_check = check_column_content(coral_data, mandatory_columns)
+    except InvalidDataError as error:
+        print(f"ERROR: {error}")
+        return
+    for warning in columns_check:
+        print(f"WARNING: {warning}")
 
     # Data preprocessing
     coral_data, warnings = data_preparation(coral_data, 
