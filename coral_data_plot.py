@@ -1,5 +1,8 @@
 from pathlib import Path
 import csv
+import io
+import zipfile
+import os
 
 import pandas as pd
 import numpy as np
@@ -39,6 +42,21 @@ def load_coral_data(file_path):
 
     except csv.Error:
         raise InvalidDataError("Separator not detected or empty file")
+
+
+def get_file_name(file_path):
+    """
+    Get file name based on its path.
+
+    Arguments:
+    file_path: Path
+
+    Returns
+    file name (str)
+    """
+    file_path_components = file_path.split('/')
+    file_name_and_extension = file_path_components[-1].rsplit('.', 1)
+    return file_name_and_extension[0]
 
 
 def check_column_content(dataframe, mandatory_columns):
@@ -238,7 +256,7 @@ def plot_larval_behavior(dataframe, cohort_id):
     return fig, fig_name
 
 
-def save_figure(fig, fig_name, save_dir, format="png"):
+def save_figure(fig, fig_name, save_dir, output_format="png", res=150):
     """
     Save a figure in the output directory
 
@@ -246,6 +264,8 @@ def save_figure(fig, fig_name, save_dir, format="png"):
     fig (matplotlib.figure.Figure): figure to save
     fig_name (str): name of output file
     save_dir (str): directory to save the output fig.
+    output_format (str): output format
+    res (int): output resolution
 
     Returns:
     None
@@ -253,13 +273,17 @@ def save_figure(fig, fig_name, save_dir, format="png"):
     save_path = Path(save_dir)
     save_path.mkdir(exist_ok=True)
 
-    fig.savefig(save_path / f"{fig_name}.{format}",
-                dpi=150,
+    fig.savefig(save_path / f"{fig_name}.{output_format}",
+                dpi=res,
                 bbox_inches="tight")
     plt.close(fig)
 
 
-def prepare_data_for_plotting(data_file):
+def prepare_data_for_plotting(data_file,
+                              mandatory_columns,
+                              info_columns,
+                              behavior_columns,
+                              total_larvae_per_replicate):
     """
     Prepare the data to be plotted (load data file, check column content, compute percentages)
 
@@ -272,11 +296,6 @@ def prepare_data_for_plotting(data_file):
     Raises:
     InvalidDataError
     """
-    mandatory_columns = config.MANDATORY_COLUMNS
-    info_columns = config.INFO_COLUMNS
-    behavior_columns = config.BEHAVIOR_COLUMNS
-    total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
-
     warnings_list = []
     # Loading data
     coral_data = load_coral_data(data_file)
@@ -299,11 +318,53 @@ def prepare_data_for_plotting(data_file):
     return grouped_percentage, warnings_list
 
 
+def zippack_figures(grouped_percentage, output_format="png", output_res=150):
+    """
+    Create a zip containing all larval behavior proportion plots.
+
+    Arguments:
+    grouped_percentage: dataframe containing the computed percentages necessary to plot larval behavior
+    output_format (str): format for the output plot
+    output_res (int): resolution of the output plot
+
+    Returns:
+    zip 
+    """
+    zip_buffer = io.BytesIO()
+    cohorts = grouped_percentage.index.unique(level="COHORT_ID")
+
+    with zipfile.ZipFile(zip_buffer, "w") as archive:
+        for cohort in cohorts:
+            figure, fig_name = plot_larval_behavior(grouped_percentage, cohort)
+            figure_buffer = io.BytesIO()
+            figure.savefig(figure_buffer,
+                           format=output_format,
+                           dpi=output_res,
+                           bbox_inches="tight")
+            plt.close(figure)
+
+            archive.writestr(f"{fig_name}.{output_format}", figure_buffer.getvalue())
+    zip_bytes = zip_buffer.getvalue()
+    return zip_bytes
+
+
 def main():
     data_file = config.FILE_PATH
+    mandatory_columns = config.MANDATORY_COLUMNS
+    info_columns = config.INFO_COLUMNS
+    behavior_columns = config.BEHAVIOR_COLUMNS
+    total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
+    output_path = config.OUTPUT_PATH
+    output_format = config.OUTPUT_FORMAT
+    output_res = config.OUTPUT_RES
+
     print(f"Loading coral data from: {data_file}")
     try:
-        grouped_percentage, warnings_list = prepare_data_for_plotting(data_file)
+        grouped_percentage, warnings_list = prepare_data_for_plotting(data_file,
+                                                                      mandatory_columns,
+                                                                      info_columns,
+                                                                      behavior_columns,
+                                                                      total_larvae_per_replicate)
     except InvalidDataError as error:
         print(f"ERROR: {error}")
         return
@@ -315,7 +376,13 @@ def main():
     for cohort in tqdm(cohorts,
                        desc="Plotting larval behavior for each cohort"):
         figure, fig_name = plot_larval_behavior(grouped_percentage, cohort)
-        save_figure(figure, fig_name, config.OUTPUT_PATH)
+        save_figure(figure, fig_name,
+                    output_path, output_format, output_res)
+
+    zip_bytes = zippack_figures(grouped_percentage,
+                                output_format, output_res)
+    output_file_name = f"{Path(data_file).stem}_plot.zip"
+    (Path(output_path) / output_file_name).write_bytes(zip_bytes)
 
 
 if __name__ == "__main__":
