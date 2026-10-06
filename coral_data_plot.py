@@ -259,42 +259,36 @@ def save_figure(fig, fig_name, save_dir, format="png"):
     plt.close(fig)
 
 
-def main():
+def prepare_data_for_plotting(data_file):
     """
-    Plot larval behavior for each cohort and each treatment.
-    The function reads the data specified in the config 
-    and saves a plot per cohort in the output folder.
+    Prepare the data to be plotted (load data file, check column content, compute percentages)
+
+    Arguments:
+    data_file: file path or uploaded file.
+
+    Returns:
+    dataframe with computed percentages + list of warnings
+
+    Raises:
+    InvalidDataError
     """
-    file_path = config.FILE_PATH
     mandatory_columns = config.MANDATORY_COLUMNS
     info_columns = config.INFO_COLUMNS
     behavior_columns = config.BEHAVIOR_COLUMNS
     total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
 
+    warnings_list = []
     # Loading data
-    try:
-        print(f"Loading coral data from: {file_path}")
-        coral_data = load_coral_data(file_path)
-    except InvalidDataError as error:
-        print(f"ERROR: {error}")
-        return
-    # print_info_loaded_data(coral_data)
+    coral_data = load_coral_data(data_file)
 
-    try:
-        columns_check = check_column_content(coral_data, mandatory_columns)
-    except InvalidDataError as error:
-        print(f"ERROR: {error}")
-        return
-    for warning in columns_check:
-        print(f"WARNING: {warning}")
+    columns_check = check_column_content(coral_data, mandatory_columns)
+    warnings_list.extend(columns_check)
 
     # Data preprocessing
-    coral_data, warnings = data_preparation(coral_data, 
+    coral_data, warnings = data_preparation(coral_data,
                                             behavior_columns,
                                             info_columns + ["NB_REPLICATES"])
-    # print warnings
-    for warning in warnings:
-        print(f"WARNING: {warning}")
+    warnings_list.extend(warnings)
 
     behavior_columns = behavior_columns + ["NB_DEAD"]
 
@@ -302,7 +296,19 @@ def main():
                                             behavior_columns,
                                             total_larvae_per_replicate,
                                             info_columns)
-    print(grouped_percentage)
+    return grouped_percentage, warnings_list
+
+
+def main():
+    data_file = config.FILE_PATH
+    print(f"Loading coral data from: {data_file}")
+    try:
+        grouped_percentage, warnings_list = prepare_data_for_plotting(data_file)
+    except InvalidDataError as error:
+        print(f"ERROR: {error}")
+        return
+    for warning in warnings_list:
+        print(f"WARNING: {warning}")
 
     cohorts = grouped_percentage.index.unique(level="COHORT_ID")
 
