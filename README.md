@@ -1,4 +1,4 @@
-# Coral Settlement Assays
+# &#x1FAB8 Coral Settlement Assays
 
 A small Python application that turns the results of coral larval settlement
 assays into percent stacked bar charts.
