@@ -140,9 +140,6 @@ These points are planned but not handled yet:
 - A typo in a numeric column (for example `3. 1`) is not detected and can
   silently distort the calculations.
 - Rows with missing values (NA) are not removed automatically.
-- In the app, the charts of a previous file stay displayed after uploading a
-  new file (they are regenerated for the new file without clicking
-  **Generate graphs** again).
 
 Please check your file carefully until these points are addressed.
 

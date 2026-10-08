@@ -1,0 +1,28 @@
+# Streamlit theme: soft coral reef colors
+# (coral for actions, lagoon blues for backgrounds, deep ocean for text)
+
+[theme]
+base = "light"
+yellowBackgroundColor = "#FCF1D9"
+yellowTextColor = "#8A5A12"
+
+# Main accent: buttons, selected widgets, progress, links
+primaryColor = "#DD5A47"          # warm coral
+
+# Backgrounds
+backgroundColor = "#F4FBFB"       # pale lagoon water
+secondaryBackgroundColor = "#DDF1EF"  # light turquoise (expanders, uploader, inputs)
+
+# Text and lines
+textColor = "#1F3A4D"             # deep ocean blue
+linkColor = "#1B7F8C"             # teal
+borderColor = "#BFE0DC"           # soft sea-glass border
+showWidgetBorder = true
+
+# Tables
+dataframeHeaderBackgroundColor = "#DDF1EF"
+
+# Shapes and fonts
+baseRadius = "medium"
+buttonRadius = "full"             # pill-shaped buttons
+font = "sans-serif"
