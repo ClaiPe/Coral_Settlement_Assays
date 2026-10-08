@@ -1,9 +1,12 @@
+from pathlib import Path
+
 import streamlit as st
 import matplotlib.pyplot as plt
 
 import config
 from coral_data_plot import (InvalidDataError,
-                             prepare_data_for_plotting, plot_larval_behavior)
+                             prepare_data_for_plotting, plot_larval_behavior,
+                             zippack_figures)
 
 st.title("Coral Settlement Assays Experiment Visualization")
 st.write("Upload your coral settlement assays data to plot larval behavior proportions.")
@@ -29,6 +32,8 @@ if uploaded_file is not None:
     info_columns = config.INFO_COLUMNS
     behavior_columns = config.BEHAVIOR_COLUMNS
     total_larvae_per_replicate = config.TOTAL_LARVAE_REPLICATE
+    output_format = config.OUTPUT_FORMAT
+    output_res = config.OUTPUT_RES
 
     try:
         grouped_percentage, warnings_list = prepare_data_for_plotting(uploaded_file,
@@ -45,9 +50,22 @@ if uploaded_file is not None:
     st.dataframe(grouped_percentage.round(0))
 
     if st.button("Generate graphs"):
+        st.session_state["graphs_requested"] = True
+
+    if st.session_state.get("graphs_requested", False):
         cohorts = grouped_percentage.index.unique(level="COHORT_ID")
 
         with st.spinner("Plotting larval behavior for each cohort..."):
+            zip_bytes = zippack_figures(grouped_percentage,
+                                        output_format, output_res)
+            output_file_name = f"{Path(uploaded_file.name).stem}_plot.zip"
+
+            st.download_button(
+                label="Download graphs",
+                data=zip_bytes,
+                file_name=output_file_name,
+                mime="application/zip")
+
             for cohort in cohorts:
                 figure, _ = plot_larval_behavior(grouped_percentage, cohort)
                 st.pyplot(figure)
